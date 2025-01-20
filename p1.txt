@@ -1,55 +1,31 @@
 import numpy as np
-
-# Input data:
 x = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+y_and = np.array([0, 0, 0, 1])
+y_or = np.array([0, 1, 1, 1])
 
-# Target outputs for AND and OR gates
-y_and = np.array([0, 0, 0, 1])  # Target outputs for AND
-y_or = np.array([0, 1, 1, 1])   # Target outputs for OR
+def sigmoid(x):
+    return 1/(1 + np.exp(-x))
 
-# Initialize weights and bias
-w1 = 0.8
-w2 = 0.9
-bias = 0.25
-learning_rate = 0.1
+def train_gate(x, y, epochs = 50000, lr = 0.01):
+    w1, w2, bias = 0.1, 0.9, 0.25
+    for _ in range(epochs):
+        for i in range(4):
+            result = sigmoid(x[i][0] * w1 + x[i][1] * w2 + bias)
+            w1 += lr * (y[i] - result) * x[i][0]
+            w2 += lr * (y[i] - result) * x[i][0]
+            bias += lr * (y[i] - result)
+    return w1, w2, bias
 
-# Sigmoid activation function
-def sigmoid(z):
-    return 1 / (1 + np.exp(-z))
+def predict_gate(x, w1, w2, bias):
+    return [1 if sigmoid(x[i][0] * w1 + x[i][1] * w2 + bias) > 0.5 else 0 for i in range(4)]
 
-# Training loop for AND and OR
-for epoch in range(5000):
-    for i in range(4):
-        # AND Gate training
-        z_and = x[i][0] * w1 + x[i][1] * w2 + bias
-        result_and = sigmoid(z_and)
-        error_and = y_and[i] - result_and
-        w1 += learning_rate * error_and * x[i][0]
-        w2 += learning_rate * error_and * x[i][1]
-        bias += learning_rate * error_and
-        
-        # OR Gate training
-        z_or = x[i][0] * w1 + x[i][1] * w2 + bias
-        result_or = sigmoid(z_or)
-        error_or = y_or[i] - result_or
-        w1 += learning_rate * error_or * x[i][0]
-        w2 += learning_rate * error_or * x[i][1]
-        bias += learning_rate * error_or
+w1_and, w2_and, bias_and = train_gate(x, y_and)
+w1_or, w2_or, bias_or = train_gate(x, y_or)
 
-# Testing the trained model
-print("Final weights:", w1, w2)
-print("Final bias:", bias)
+print("AND PREDICTIONS:")
+for i, p in enumerate(predict_gate(x, w1_and, w2_and, bias_and)):
+    print(f"Input {x[i]} -> Predicted {p}")
 
-# Show results for all inputs
-for i in range(4):
-    # Test AND Gate
-    z_and = x[i][0] * w1 + x[i][1] * w2 + bias
-    result_and = sigmoid(z_and)
-    predicted_and = 1 if result_and >= 0.5 else 0
-
-    # Test OR Gate
-    z_or = x[i][0] * w1 + x[i][1] * w2 + bias
-    result_or = sigmoid(z_or)
-    predicted_or = 1 if result_or >= 0.5 else 0
-
-    print(f"Input: {x[i]}, AND Output: {result_and:.4f}, Predicted: {predicted_and}, OR Output: {result_or:.4f}, Predicted: {predicted_or}")
+print("\nOR PREDICTIONS:")
+for i, p in enumerate(predict_gate(x, w1_or, w2_or, bias_or)):
+    print(f"Input {x[i]} -> Predicted {p}")
