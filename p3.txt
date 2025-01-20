@@ -1,60 +1,57 @@
-from keras.models import Sequential, Model
-from keras.layers import Input, Dense
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-import numpy as np, pandas as pd, matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.models import Model
+from tensorflow.keras.datasets import mnist
+import matplotlib.pyplot as plt
 
-from keras.datasets import mnist
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
+(x_train, _), (x_test, _) = mnist.load_data()
+x_train, x_test = x_train.reshape(-1, 784) / 255.0, x_test.reshape(-1, 784) / 255.0
 
-x_train = x_train.astype('float32') / 255.
-x_test = x_test.astype('float32') / 255.
-x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
-x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
-print(x_train.shape)
-print(x_test.shape)
-
-encoding_dim = 64
 input_img = Input(shape=(784,))
-encoded = Dense(128, activation='relu')(input_img)
-encoded = Dense(encoding_dim, activation='relu')(encoded)
-decoded = Dense(128, activation='relu')(encoded)
+encoded = Dense(256, activation='relu')(input_img)
+encoded = Dense(128, activation='relu')(encoded)
+encoded_output = Dense(64, activation='relu')(encoded)  # Encoded (latent space)
+decoded = Dense(128, activation='relu')(encoded_output)
+decoded = Dense(256, activation='relu')(decoded)
 decoded = Dense(784, activation='sigmoid')(decoded)
 
 autoencoder = Model(input_img, decoded)
-encoder = Model(input_img, encoded)
+encoder = Model(input_img, encoded_output)  # Define encoder model to get latent space
 
-autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+autoencoder.compile(optimizer='adam', loss='mse')
+history = autoencoder.fit(x_train, x_train, epochs=10, batch_size=256, validation_data=(x_test, x_test))
 
-history = autoencoder.fit(x_train, x_train,
-                epochs=30,
-                batch_size=256,
-                shuffle=True,
-                validation_data=(x_test, x_test))
+decoded_imgs = autoencoder.predict(x_test)
+encoded_imgs = encoder.predict(x_test)  # Get the latent space representations
 
-plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
-plt.title('Autoencoder Loss')
-plt.ylabel('Loss')
-plt.xlabel('Epoch')
-plt.legend(['Train', 'Test'], loc='upper right')
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.legend()
+plt.title("Loss vs Epochs")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
 plt.show()
 
-decoder=Model(encoded,decoded)
+plt.figure(figsize=(20, 6))
+n = 10  # Number of images to display
+for i in range(n):
+    # Original images
+    ax = plt.subplot(3, n, i + 1)
+    plt.imshow(x_test[i].reshape(28, 28), cmap='gray')
+    plt.title("Original")
+    ax.axis('off')
 
-encoded_img = encoder.predict(x_test)
-decoded_img = decoder.predict(encoded_img)
-plt.figure(figsize=(20, 4))
-for i in range(5):
-    ax = plt.subplot(2, 5, i + 1)
-    plt.imshow(x_test[i].reshape(28, 28))
-    plt.gray()
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-    ax = plt.subplot(2, 5, i + 1 + 5)
-    plt.imshow(decoded_img[i].reshape(28, 28))
-    plt.gray()
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
+    # Encoded (latent space) images
+    ax = plt.subplot(3, n, i + 1 + n)
+    plt.imshow(encoded_imgs[i].reshape(8, 8), cmap='gray')  # Reshape to 8x8
+    plt.title("Encoded")
+    ax.axis('off')
+
+    # Reconstructed images
+    ax = plt.subplot(3, n, i + 1 + 2 * n)
+    plt.imshow(decoded_imgs[i].reshape(28, 28), cmap='gray')
+    plt.title("Reconstructed")
+    ax.axis('off')
+
+plt.tight_layout()
 plt.show()
